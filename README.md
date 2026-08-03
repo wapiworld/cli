@@ -28,6 +28,16 @@ Found 2 instance(s):
 Message sent successfully
 ```
 
+## Signing up
+
+No account yet? Create one from the terminal — the generated password prints
+exactly once, and the session is stored so every other command works
+immediately:
+
+```bash
+wapiworld signup --email founder@example.com --json
+```
+
 ## Authentication
 
 `wapiworld login` on an interactive terminal asks how you want to log in:
@@ -72,10 +82,11 @@ arguments) as JSON; `wapiworld schema messages list` prints one subtree.
 ### Session
 
 ```bash
-wapiworld login                # choose browser or API key interactively
-wapiworld login --browser      # browser login
-wapiworld login --with-key     # masked prompt for an API key secret
-wapiworld logout               # clear the stored session and any stored key
+wapiworld signup --email <email>  # create an account and log in
+wapiworld login                   # choose browser or API key interactively
+wapiworld login --browser         # browser login
+wapiworld login --with-key        # masked prompt for an API key secret
+wapiworld logout                  # clear the stored session and any stored key
 ```
 
 ### Projects

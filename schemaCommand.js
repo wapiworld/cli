@@ -7,6 +7,7 @@ const logoutCommand = require('./logoutCommand.js')
 const messagesCommand = require('./messagesCommand.js')
 const projectsCommand = require('./projectsCommand.js')
 const sendCommand = require('./sendCommand.js')
+const signupCommand = require('./signupCommand.js')
 const skillsCommand = require('./skillsCommand.js')
 
 // `wapiworld schema` — the whole command tree as JSON, so an agent can
@@ -31,6 +32,7 @@ function schemaCommand() {
       projectsCommand,
       schemaCommand,
       sendCommand,
+      signupCommand,
       skillsCommand,
     ],
   })
