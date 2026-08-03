@@ -1,6 +1,11 @@
 /* Copyright 2013 - 2026 Waiterio LLC */
 const { inspect } = require('node:util')
 const commander = require('commander')
+const {
+  withJson,
+  printJson,
+  fail,
+} = require('@monorepool/agentfirst/output.js')
 const ensureAuth = require('./ensureAuth.js')
 const get = require('@wapiworld/client/get.js').default
 
@@ -9,16 +14,19 @@ function keysCommand() {
   command.description('manage API keys')
 
   // wapiworld keys list
-  command
-    .command('list')
+  withJson(command.command('list'))
     .description('list API keys')
-    .action(async () => {
+    .action(async options => {
       try {
         await ensureAuth()
 
         const keys = await get({ url: 'keys' })
 
-        if (keys.length === 0) {
+        if (options.json) {
+          // Redact the secrets: `keys list` never printed them for humans,
+          // and json mode must not widen what the command reveals.
+          printJson(keys.map(({ secret: _, ...key }) => key))
+        } else if (keys.length === 0) {
           console.log('No keys found')
         } else {
           console.log(`Found ${keys.length} key(s):`)
@@ -28,47 +36,58 @@ function keysCommand() {
           })
         }
       } catch (error) {
-        console.log('error', error)
+        fail(error, { json: options.json })
       }
     })
 
   // wapiworld keys get [keyId]
-  command
-    .command('get [keyId]')
+  withJson(command.command('get [keyId]'))
     .description('get keys (raw JSON), or a single key by id')
-    .action(async keyId => {
+    .action(async (keyId, options) => {
       try {
         await ensureAuth()
 
         if (keyId) {
           const key = await get({ url: `keys/${keyId}` })
 
-          if (key) {
-            console.log(inspect(key, { colors: true, depth: null }))
+          if (!key) {
+            fail(new Error('Key not found'), { json: options.json })
+          } else if (options.json) {
+            printJson(key)
           } else {
-            console.log('Key not found')
+            console.log(inspect(key, { colors: true, depth: null }))
           }
         } else {
           const keys = await get({ url: 'keys' })
-          console.log(inspect(keys, { colors: true, depth: null }))
+
+          if (options.json) {
+            printJson(keys)
+          } else {
+            console.log(inspect(keys, { colors: true, depth: null }))
+          }
         }
       } catch (error) {
-        console.log('error', error)
+        fail(error, { json: options.json })
       }
     })
 
   // wapiworld keys read <keyId>
-  command
-    .command('read <keyId>')
+  withJson(command.command('read <keyId>'))
     .description('read a key formatted for the terminal')
-    .action(async keyId => {
+    .action(async (keyId, options) => {
       try {
         await ensureAuth()
 
         const key = await get({ url: `keys/${keyId}` })
 
         if (!key) {
-          console.log('Key not found')
+          fail(new Error('Key not found'), { json: options.json })
+
+          return
+        }
+
+        if (options.json) {
+          printJson(key)
 
           return
         }
@@ -94,7 +113,7 @@ function keysCommand() {
 
         console.log()
       } catch (error) {
-        console.log('error', error)
+        fail(error, { json: options.json })
       }
     })
 

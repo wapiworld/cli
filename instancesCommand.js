@@ -1,6 +1,11 @@
 /* Copyright 2013 - 2026 Waiterio LLC */
 const { inspect } = require('node:util')
 const commander = require('commander')
+const {
+  withJson,
+  printJson,
+  fail,
+} = require('@monorepool/agentfirst/output.js')
 const ensureAuth = require('./ensureAuth.js')
 const getInstances = require('@wapiworld/client/getInstances.js').default
 
@@ -9,16 +14,17 @@ function instancesCommand() {
   command.description('manage instances')
 
   // wapiworld instances list
-  command
-    .command('list')
+  withJson(command.command('list'))
     .description('list instances')
-    .action(async () => {
+    .action(async options => {
       try {
         await ensureAuth()
 
         const instances = await getInstances()
 
-        if (instances.length === 0) {
+        if (options.json) {
+          printJson(instances)
+        } else if (instances.length === 0) {
           console.log('No instances found')
         } else {
           console.log(`Found ${instances.length} instance(s):`)
@@ -30,15 +36,14 @@ function instancesCommand() {
           })
         }
       } catch (error) {
-        console.log('error', error)
+        fail(error, { json: options.json })
       }
     })
 
   // wapiworld instances get [instanceId]
-  command
-    .command('get [instanceId]')
+  withJson(command.command('get [instanceId]'))
     .description('get instances (raw JSON), or a single instance by id')
-    .action(async instanceId => {
+    .action(async (instanceId, options) => {
       try {
         await ensureAuth()
 
@@ -46,25 +51,31 @@ function instancesCommand() {
           const instances = await getInstances()
           const instance = instances.find(i => i._id === instanceId)
 
-          if (instance) {
-            console.log(inspect(instance, { colors: true, depth: null }))
+          if (!instance) {
+            fail(new Error('Instance not found'), { json: options.json })
+          } else if (options.json) {
+            printJson(instance)
           } else {
-            console.log('Instance not found')
+            console.log(inspect(instance, { colors: true, depth: null }))
           }
         } else {
           const instances = await getInstances()
-          console.log(inspect(instances, { colors: true, depth: null }))
+
+          if (options.json) {
+            printJson(instances)
+          } else {
+            console.log(inspect(instances, { colors: true, depth: null }))
+          }
         }
       } catch (error) {
-        console.log('error', error)
+        fail(error, { json: options.json })
       }
     })
 
   // wapiworld instances read <instanceId>
-  command
-    .command('read <instanceId>')
+  withJson(command.command('read <instanceId>'))
     .description('read an instance formatted for the terminal')
-    .action(async instanceId => {
+    .action(async (instanceId, options) => {
       try {
         await ensureAuth()
 
@@ -72,7 +83,13 @@ function instancesCommand() {
         const instance = instances.find(i => i._id === instanceId)
 
         if (!instance) {
-          console.log('Instance not found')
+          fail(new Error('Instance not found'), { json: options.json })
+
+          return
+        }
+
+        if (options.json) {
+          printJson(instance)
 
           return
         }
@@ -114,7 +131,7 @@ function instancesCommand() {
 
         console.log()
       } catch (error) {
-        console.log('error', error)
+        fail(error, { json: options.json })
       }
     })
 

@@ -30,23 +30,52 @@ Message sent successfully
 
 ## Authentication
 
-`wapiworld login` starts a temporary localhost server, opens your browser to
-app.wapiworld.com, and receives the session tokens on the redirect back. If
-the browser does not open, visit the printed URL by hand; the login attempt
-times out after 5 minutes. Tokens are stored in `~/.wapiworld/` and refreshed
-automatically when they expire; `wapiworld logout` clears them.
+`wapiworld login` on an interactive terminal asks how you want to log in:
 
-For CI jobs and scripts, set `WAPIWORLD_API_KEY` to authenticate with an API
-key instead of a browser session. A stored session takes precedence over the
-key, so log out first (or scope `HOME`) when you want the key to apply.
+- **Browser** (`wapiworld login --browser`) — starts a temporary localhost
+  server, opens your browser to app.wapiworld.com, and receives the session
+  tokens on the redirect back. If the browser does not open, visit the
+  printed URL by hand; the attempt times out after 5 minutes. Tokens are
+  refreshed automatically when they expire.
+- **API key** (`wapiworld login --with-key`) — prompts (masked) for an API
+  key secret, verifies it against the API, and stores it. The secret is
+  never accepted as a command-line argument.
+
+Both credentials land in `~/.wapiworld/`; `wapiworld logout` clears them.
+
+For CI jobs, scripts, and agents, set `WAPIWORLD_API_KEY` to authenticate
+with an API key and no login step at all. Precedence: a stored browser
+session wins over a stored key, which wins over the environment variable —
+so an exported backend key never hijacks an interactive login. Log out first
+(or scope `HOME`) when you want the key to apply.
+
+Without a terminal, a command that has no stored credential and no
+`WAPIWORLD_API_KEY` fails immediately with exit code 1 and instructions on
+stderr — it never opens a browser or waits on a prompt. Key-authenticated
+callers can read projects, instances, and recorded messages, and send;
+`wapiworld keys …` management requires a browser session.
+
+## JSON output and schema
+
+Every list/get/read subcommand and `wapiworld send` accepts `--json`:
+parseable JSON on stdout, no colors, no prose. `send --json` prints a small
+result object (`{ "ok": true, "id": …, … }`); `keys list --json` omits
+secrets just like its human output. Errors always set exit code 1 and go to
+stderr — as a single-line `{"error":{"message":…,"status":…}}` object in
+json mode.
+
+`wapiworld schema` prints the whole command tree (commands, options,
+arguments) as JSON; `wapiworld schema messages list` prints one subtree.
 
 ## Commands
 
 ### Session
 
 ```bash
-wapiworld login    # log in via browser; tokens land in ~/.wapiworld/
-wapiworld logout   # clear the stored session
+wapiworld login                # choose browser or API key interactively
+wapiworld login --browser      # browser login
+wapiworld login --with-key     # masked prompt for an API key secret
+wapiworld logout               # clear the stored session and any stored key
 ```
 
 ### Projects
@@ -120,6 +149,13 @@ wapiworld skills list            # names and descriptions of the bundled agent g
 wapiworld skills get wapiworld   # print a bundled SKILL.md to stdout
 ```
 
+### Schema
+
+```bash
+wapiworld schema                 # the whole command tree as JSON
+wapiworld schema messages list   # one subtree
+```
+
 ## Configuration
 
 A `wapiworld.json` discovered beneath the working directory supplies the
@@ -133,8 +169,8 @@ Command-line options take priority over the config file.
 
 `WAPIWORLD_API_URL` overrides the API endpoint (default
 `https://api.wapiworld.com`) — only needed against a non-production
-deployment. `WAPIWORLD_API_KEY` authenticates with an API key when no browser
-session is stored.
+deployment. `WAPIWORLD_API_KEY` authenticates with an API key when neither a
+browser session nor a stored key exists.
 
 ## Usage with AI agents
 

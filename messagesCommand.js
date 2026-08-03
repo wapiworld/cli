@@ -1,6 +1,11 @@
 /* Copyright 2013 - 2026 Waiterio LLC */
 const { inspect } = require('node:util')
 const commander = require('commander')
+const {
+  withJson,
+  printJson,
+  fail,
+} = require('@monorepool/agentfirst/output.js')
 const ensureAuth = require('./ensureAuth.js')
 const getConfig = require('./getConfig.js')
 const getMessages = require('@wapiworld/client/getMessages.js').default
@@ -11,6 +16,9 @@ const getMessages = require('@wapiworld/client/getMessages.js').default
 const RECORDING_OFF_HINT =
   'No recorded messages. Wapiworld only stores message content for chats where recording is enabled — check the instance in the dashboard.'
 
+const INSTANCE_ID_REQUIRED =
+  'Instance ID is required. Use --instanceId or set it in wapiworld.json'
+
 const resolveInstanceId = (options, config) =>
   options.instanceId || config?.instanceId
 
@@ -19,8 +27,7 @@ function messagesCommand() {
   command.description('read recorded messages')
 
   // wapiworld messages list
-  command
-    .command('list', { isDefault: true })
+  withJson(command.command('list', { isDefault: true }))
     .description('list recorded messages (printed oldest-first)')
     .option('--instanceId [instanceId]', 'instance id')
     .option('--chatId [chatId]', 'chat id or phone number (e.g. +1234567890)')
@@ -36,14 +43,18 @@ function messagesCommand() {
         const instanceId = resolveInstanceId(options, config)
 
         if (!instanceId) {
-          console.log(
-            'Instance ID is required. Use --instanceId or set it in wapiworld.json',
-          )
+          fail(new Error(INSTANCE_ID_REQUIRED), { json: options.json })
 
           return
         }
 
         const messages = await getMessages({ ...options, instanceId })
+
+        if (options.json) {
+          printJson(messages)
+
+          return
+        }
 
         if (messages.length === 0) {
           console.log(RECORDING_OFF_HINT)
@@ -67,13 +78,12 @@ function messagesCommand() {
             console.log(`[${when}] ${who}: ${message.content}`)
           })
       } catch (error) {
-        console.log('error', error)
+        fail(error, { json: options.json })
       }
     })
 
   // wapiworld messages get
-  command
-    .command('get')
+  withJson(command.command('get'))
     .description('get recorded messages (raw JSON)')
     .option('--instanceId [instanceId]', 'instance id')
     .option('--chatId [chatId]', 'chat id or phone number')
@@ -86,18 +96,20 @@ function messagesCommand() {
         const instanceId = resolveInstanceId(options, config)
 
         if (!instanceId) {
-          console.log(
-            'Instance ID is required. Use --instanceId or set it in wapiworld.json',
-          )
+          fail(new Error(INSTANCE_ID_REQUIRED), { json: options.json })
 
           return
         }
 
         const messages = await getMessages({ ...options, instanceId })
 
-        console.log(inspect(messages, { colors: true, depth: null }))
+        if (options.json) {
+          printJson(messages)
+        } else {
+          console.log(inspect(messages, { colors: true, depth: null }))
+        }
       } catch (error) {
-        console.log('error', error)
+        fail(error, { json: options.json })
       }
     })
 

@@ -1,6 +1,11 @@
 /* Copyright 2013 - 2026 Waiterio LLC */
 const { inspect } = require('node:util')
 const commander = require('commander')
+const {
+  withJson,
+  printJson,
+  fail,
+} = require('@monorepool/agentfirst/output.js')
 const ensureAuth = require('./ensureAuth.js')
 const get = require('@wapiworld/client/get.js').default
 
@@ -9,16 +14,17 @@ function projectsCommand() {
   command.description('manage projects')
 
   // wapiworld projects list
-  command
-    .command('list')
+  withJson(command.command('list'))
     .description('list projects')
-    .action(async () => {
+    .action(async options => {
       try {
         await ensureAuth()
 
         const projects = await get({ url: 'projects' })
 
-        if (projects.length === 0) {
+        if (options.json) {
+          printJson(projects)
+        } else if (projects.length === 0) {
           console.log('No projects found')
         } else {
           console.log(`Found ${projects.length} project(s):`)
@@ -28,47 +34,58 @@ function projectsCommand() {
           })
         }
       } catch (error) {
-        console.log('error', error)
+        fail(error, { json: options.json })
       }
     })
 
   // wapiworld projects get [projectId]
-  command
-    .command('get [projectId]')
+  withJson(command.command('get [projectId]'))
     .description('get projects (raw JSON), or a single project by id')
-    .action(async projectId => {
+    .action(async (projectId, options) => {
       try {
         await ensureAuth()
 
         if (projectId) {
           const project = await get({ url: `projects/${projectId}` })
 
-          if (project) {
-            console.log(inspect(project, { colors: true, depth: null }))
+          if (!project) {
+            fail(new Error('Project not found'), { json: options.json })
+          } else if (options.json) {
+            printJson(project)
           } else {
-            console.log('Project not found')
+            console.log(inspect(project, { colors: true, depth: null }))
           }
         } else {
           const projects = await get({ url: 'projects' })
-          console.log(inspect(projects, { colors: true, depth: null }))
+
+          if (options.json) {
+            printJson(projects)
+          } else {
+            console.log(inspect(projects, { colors: true, depth: null }))
+          }
         }
       } catch (error) {
-        console.log('error', error)
+        fail(error, { json: options.json })
       }
     })
 
   // wapiworld projects read <projectId>
-  command
-    .command('read <projectId>')
+  withJson(command.command('read <projectId>'))
     .description('read a project formatted for the terminal')
-    .action(async projectId => {
+    .action(async (projectId, options) => {
       try {
         await ensureAuth()
 
         const project = await get({ url: `projects/${projectId}` })
 
         if (!project) {
-          console.log('Project not found')
+          fail(new Error('Project not found'), { json: options.json })
+
+          return
+        }
+
+        if (options.json) {
+          printJson(project)
 
           return
         }
@@ -97,7 +114,7 @@ function projectsCommand() {
 
         console.log()
       } catch (error) {
-        console.log('error', error)
+        fail(error, { json: options.json })
       }
     })
 
